@@ -21,35 +21,14 @@ pacman::p_load(
 ```{r data loading}
 ames_raw <- as_tibble(read_csv(
   here("Ames_HousePrice.csv")
-))
+)) 
 
 ames_geo_raw <- as_tibble(read_csv(
-  here("Ames Real Estate Data.csv")
+  here("Ames_Real_Estate_Data.csv")
 ))
 
-ames_geo_raw <- ames_geo_raw %>% 
-  dplyr::rename(
-    PID = MapRefNo
-  )
-
 ```
 
-```{r data exploration}
-## 
-ames_data <- make_ames() %>% 
-  janitor::clean_names()
-
-class(ames_data)
-
-glimpse(ames_data)
-
-
-ames_datanew <- ames_raw %>% 
-  janitor::clean_names()
-
-
-glimpse(ames_datanew)
-```
 
 ```{r data processing}
 ten_point <- c(
@@ -73,36 +52,49 @@ five_point <- c(
   "Poor"
 )
 
-ames_raw <- ames_raw %>% 
-  janitor::clean_names()
+## create a pid variable in ames_geo 
+
+ames_geo_modif <- ames_geo_raw %>% 
+  janitor::clean_names() %>%
+  dplyr::mutate(
+    pid = as.numeric(map_ref_no)
+  ) %>% 
+  dplyr::select(
+    - neighborhood
+  )
+  
+
+## calculate the amount of missing data in year garage was built
+prop.table(table(is.na(ames_raw$GarageYrBlt)))*100
+
+## process ames_raw data
 
 process_ames <- ames_raw %>%
-    # Rename variables with spaces or begin with numbers
-    # SalePrice would be inconsistently named so change that too.
-    dplyr::rename_with(
-      ~ gsub(' ', '_', .),
-      dplyr::contains(' '),
-    ) %>%
-    dplyr::rename(
-      Sale_Price = SalePrice,
-      Three_season_porch = `3Ssn_Porch`,
-      Year_Remod_Add = `Year_Remod/Add`,
-      First_Flr_SF = `1st_Flr_SF`,
-      Second_Flr_SF = `2nd_Flr_SF`,
-      Year_Sold = Yr_Sold
-    ) 
+  janitor::clean_names() %>% 
+    # # Rename variables with spaces or begin with numbers
+    # # SalePrice would be inconsistently named so change that too.
+    # dplyr::rename_with(
+    #   ~ gsub(' ', '_', .),
+    #   dplyr::contains(' '),
+    # ) %>%
+    # dplyr::rename(
+    #   Sale_Price = SalePrice,
+    #   Three_season_porch = `3SsnPorch`,
+    #   Year_Remod_Add = `YearRemodAdd`,
+    #   First_Flr_SF = `1stFlrSF`,
+    #   Second_Flr_SF = `2ndFlrSF`,
+    #   Year_Sold = YrSold
+    # ) %>%
 
-
-# %>%
-    # Remove leading zeros
+    # transform to factors levels
     dplyr::mutate(
-      MS_SubClass = as.character(as.integer(MS_SubClass))
+      ms_sub_class = as.character(as.integer(ms_sub_class))
     ) %>%
     # Make more meaningful factor levels for some variables
     dplyr::mutate(
-      MS_SubClass =
+      ms_sub_class =
         dplyr::recode_factor(
-          factor(MS_SubClass),
+          factor(ms_sub_class),
           '20' = 'One_Story_1946_and_Newer_All_Styles',
           '30' = 'One_Story_1945_and_Older',
           '40' = 'One_Story_with_Finished_Attic_All_Ages',
@@ -122,9 +114,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     dplyr::mutate(
-      MS_Zoning =
+      ms_zoning =
         dplyr::recode_factor(
-          factor(MS_Zoning),
+          factor(ms_zoning),
           'A' = 'Agriculture',
           'C' = 'Commercial',
           'FV' = 'Floating_Village_Residential',
@@ -139,64 +131,64 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     dplyr::mutate(
-      Lot_Shape =
+      lot_shape =
         dplyr::recode_factor(
-          factor(Lot_Shape),
+          factor(lot_shape),
           'Reg' = 'Regular',
           'IR1' = 'Slightly_Irregular',
           'IR2' = 'Moderately_Irregular',
           'IR3' = 'Irregular'
         )
     ) %>%
-    dplyr::mutate(Bldg_Type =
-                    dplyr::recode_factor(factor(Bldg_Type),
+    dplyr::mutate(bldg_type =
+                    dplyr::recode_factor(factor(bldg_type),
                                          '1Fam' = 'OneFam',
                                          '2fmCon' = 'TwoFmCon')) %>%
     # Change some factor levels so that they make valid R variable names
     dplyr::mutate(
-      House_Style =  gsub("^1.5", "One_and_Half_", House_Style),
-      House_Style =  gsub("^1", "One_", House_Style),
-      House_Style =  gsub("^2.5", "Two_and_Half_", House_Style),
-      House_Style =  gsub("^2", "Two_", House_Style),
-      House_Style = factor(House_Style)
+      house_style =  gsub("^1.5", "One_and_Half_", house_style),
+      house_style =  gsub("^1", "One_", house_style),
+      house_style =  gsub("^2.5", "Two_and_Half_", house_style),
+      house_style =  gsub("^2", "Two_", house_style),
+      house_style = factor(house_style)
     ) %>%
     # Some characteristics that houses lack (e.g. garage, pool) are
     # coded as missing instead of "No_pool" or "No_Garage". Change these
     # and also cases where the number of missing (e.g. garage size)
     dplyr::mutate(
-      Bsmt_Exposure = ifelse(is.na(Bsmt_Exposure), "No_Basement", Bsmt_Exposure),
-      Bsmt_Exposure = factor(Bsmt_Exposure),
-      BsmtFin_Type_1 = ifelse(is.na(BsmtFin_Type_1), "No_Basement", BsmtFin_Type_1),
-      BsmtFin_Type_1 = factor(BsmtFin_Type_1),
-      BsmtFin_SF_1 = ifelse(is.na(BsmtFin_SF_1), 0, BsmtFin_Type_1),
-      BsmtFin_Type_2 = ifelse(is.na(BsmtFin_Type_2), "No_Basement", BsmtFin_Type_2),
-      BsmtFin_Type_2 = factor(BsmtFin_Type_2),
-      BsmtFin_SF_2 = ifelse(is.na(BsmtFin_SF_2), 0, BsmtFin_SF_2),
-      Bsmt_Unf_SF = ifelse(is.na(Bsmt_Unf_SF), 0, Bsmt_Unf_SF),
-      Total_Bsmt_SF = ifelse(is.na(Total_Bsmt_SF), 0, Total_Bsmt_SF),
-      Bsmt_Full_Bath = ifelse(is.na(Bsmt_Full_Bath), 0, Bsmt_Full_Bath),
-      Bsmt_Half_Bath = ifelse(is.na(Bsmt_Half_Bath), 0, Bsmt_Half_Bath),
-      Electrical = ifelse(is.na(Electrical), "Unknown", Electrical),
+      bsmt_exposure = ifelse(is.na(bsmt_exposure), "No_Basement", bsmt_exposure),
+      bsmt_exposure = factor(bsmt_exposure),
+      bsmt_fin_type1 = ifelse(is.na(bsmt_fin_type1), "No_Basement", bsmt_fin_type1),
+      bsmt_fin_type1 = factor(bsmt_fin_type1),
+      bsmt_fin_sf1 = ifelse(is.na(bsmt_fin_sf1), 0, bsmt_fin_type1),
+      bsmt_fin_type2 = ifelse(is.na(bsmt_fin_type2), "No_Basement", bsmt_fin_type2),
+      bsmt_fin_type2 = factor(bsmt_fin_type2),
+     bsmt_fin_sf2 = ifelse(is.na( bsmt_fin_sf2), 0,bsmt_fin_sf2),
+    bsmt_unf_sf = ifelse(is.na(bsmt_unf_sf), 0,bsmt_unf_sf),
+      total_bsmt_sf = ifelse(is.na(total_bsmt_sf), 0, total_bsmt_sf),
+     bsmt_full_bath = ifelse(is.na(bsmt_full_bath), 0,bsmt_full_bath),
+      bsmt_half_bath = ifelse(is.na(bsmt_half_bath), 0, bsmt_half_bath),
+      electrical = ifelse(is.na(electrical), "Unknown", electrical),
     ) %>%
-    dplyr::mutate(Garage_Type =
-                    dplyr::recode(Garage_Type,
+    dplyr::mutate(garage_type =
+                    dplyr::recode(garage_type,
                                   '2Types' = 'More_Than_Two_Types')) %>%
     dplyr::mutate(
-      Garage_Type = ifelse(is.na(Garage_Type), "No_Garage", Garage_Type),
-      Garage_Finish = ifelse(is.na(Garage_Finish), "No_Garage", Garage_Finish),
-      Garage_Cars = ifelse(is.na(Garage_Cars), 0, Garage_Cars),
-      Garage_Area = ifelse(is.na(Garage_Area), 0, Garage_Area),
-      Bsmt_Full_Bath = ifelse(is.na(Bsmt_Full_Bath), 0, Bsmt_Full_Bath),
-      Bsmt_Half_Bath = ifelse(is.na(Bsmt_Half_Bath), 0, Bsmt_Half_Bath),
-      Misc_Feature = ifelse(is.na(Misc_Feature), "None", Misc_Feature),
-      Mas_Vnr_Type = ifelse(is.na(Mas_Vnr_Type), "None", Mas_Vnr_Type),
-      Mas_Vnr_Area = ifelse(is.na(Mas_Vnr_Area), 0, Mas_Vnr_Area),
-      Lot_Frontage = ifelse(is.na(Lot_Frontage), 0, Lot_Frontage)
+      garage_type = ifelse(is.na(garage_type), "No_Garage", garage_type),
+      garage_finish = ifelse(is.na(garage_finish), "No_Garage", garage_finish),
+     garage_cars = ifelse(is.na(garage_cars), 0,garage_cars),
+      garage_area = ifelse(is.na(garage_area), 0, garage_area),
+     bsmt_full_bath = ifelse(is.na(bsmt_full_bath), 0,bsmt_full_bath),
+      bsmt_half_bath = ifelse(is.na(bsmt_half_bath), 0, bsmt_half_bath),
+      misc_feature = ifelse(is.na(misc_feature), "None", misc_feature),
+      mas_vnr_type = ifelse(is.na(mas_vnr_type), "None", mas_vnr_type),
+      mas_vnr_area = ifelse(is.na(mas_vnr_area), 0, mas_vnr_area),
+      lot_frontage = ifelse(is.na(lot_frontage), 0, lot_frontage)
     ) %>%
     mutate(
-      Overall_Qual =
+      overall_qual =
         dplyr::recode(
-          Overall_Qual,
+          overall_qual,
           `10` = "Very_Excellent",
           `9` = "Excellent",
           `8` = "Very_Good",
@@ -210,9 +202,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Overall_Cond =
+      overall_cond =
         dplyr::recode(
-          Overall_Cond,
+          overall_cond,
           `10` = "Very_Excellent",
           `9` = "Excellent",
           `8` = "Very_Good",
@@ -226,9 +218,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Exter_Qual =
+      exter_qual =
         dplyr::recode(
-          Exter_Qual,
+          exter_qual,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -237,9 +229,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Exter_Cond =
+     exter_cond =
         dplyr::recode(
-          Exter_Cond,
+         exter_cond,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -248,9 +240,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Bsmt_Qual =
+      bsmt_qual =
         dplyr::recode(
-          Bsmt_Qual,
+          bsmt_qual,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -260,9 +252,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Bsmt_Cond =
+     bsmt_cond =
         dplyr::recode(
-          Bsmt_Cond,
+         bsmt_cond,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -272,9 +264,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Heating_QC =
+      heating_qc =
         dplyr::recode(
-          Heating_QC,
+          heating_qc,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -283,9 +275,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Kitchen_Qual =
+     kitchen_qual =
         dplyr::recode(
-          Kitchen_Qual,
+         kitchen_qual,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -294,9 +286,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Fireplace_Qu =
+     fireplace_qu =
         dplyr::recode(
-          Fireplace_Qu,
+         fireplace_qu,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -306,9 +298,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Garage_Qual =
+      garage_qual =
         dplyr::recode(
-          Garage_Qual,
+          garage_qual,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -318,9 +310,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Garage_Cond =
+      garage_cond =
         dplyr::recode(
-          Garage_Cond,
+          garage_cond,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -330,9 +322,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Pool_QC =
+     pool_qc =
         dplyr::recode(
-          Pool_QC,
+         pool_qc,
           "Ex" = "Excellent",
           "Gd" = "Good",
           "TA" = "Typical",
@@ -342,9 +334,9 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Neighborhood =
+      neighborhood =
         dplyr::recode(
-          Neighborhood,
+          neighborhood,
           "Blmngtn" = "Bloomington_Heights",
           "Bluestem" = "Bluestem",
           "BrDale" = "Briardale",
@@ -377,99 +369,104 @@ process_ames <- ames_raw %>%
         )
     ) %>%
     mutate(
-      Alley =
+      alley =
         dplyr::recode(
-          Alley,
+          alley,
           "Grvl" = "Gravel",
           "Pave" = "Paved",
           .missing = "No_Alley_Access"
         )
     ) %>%
     mutate(
-      Paved_Drive =
+      paved_drive =
         dplyr::recode(
-          Paved_Drive,
+          paved_drive,
           "Y" = "Paved",
           "P" = "Partial_Pavement",
           "N" = "Dirt_Gravel"
         )
     )   %>%
     mutate(
-      Fence =
+      fence =
         dplyr::recode(
-          Fence,
+          fence,
           "GdPrv" = "Good_Privacy",
           "MnPrv" = "Minimum_Privacy",
           "GdWo" = "Good_Wood",
           "MnWw" = "Minimum_Wood_Wire",
-          .missing = "No_Fence"
+          .missing = "No_fence"
         )
     )   %>%
     # Convert everything else to factors
     dplyr::mutate(
-      Alley = factor(Alley),
-      Bsmt_Qual = factor(Bsmt_Qual),
-      Bsmt_Cond = factor(Bsmt_Cond),
-      Central_Air = factor(Central_Air),
-      Condition_1 = factor(Condition_1),
-      Condition_2 = factor(Condition_2),
-      Electrical = factor(Electrical),
-      Exter_Cond = factor(Exter_Cond),
-      Exter_Qual = factor(Exter_Qual),
-      Exterior_1st = factor(Exterior_1st),
-      Exterior_2nd = factor(Exterior_2nd),
-      Fence = factor(Fence),
-      Fireplace_Qu = factor(Fireplace_Qu),
-      Foundation = factor(Foundation),
-      Functional = factor(Functional),
-      Garage_Cond = factor(Garage_Cond),
-      Garage_Finish = factor(Garage_Finish),
-      Garage_Qual = factor(Garage_Qual),
-      Garage_Type = factor(Garage_Type),
-      Heating = factor(Heating),
-      Heating_QC = factor(Heating_QC),
-      Kitchen_Qual = factor(Kitchen_Qual),
-      Land_Contour = factor(Land_Contour),
-      Land_Slope = factor(Land_Slope),
-      Lot_Config = factor(Lot_Config),
-      Mas_Vnr_Type = factor(Mas_Vnr_Type),
-      Misc_Feature = factor(Misc_Feature),
-      Paved_Drive = factor(Paved_Drive),
-      Pool_QC = factor(Pool_QC),
-      Roof_Matl = factor(Roof_Matl),
-      Roof_Style = factor(Roof_Style),
-      Sale_Condition = factor(Sale_Condition),
-      Sale_Type = factor(Sale_Type),
-      Street = factor(Street),
-      Utilities = factor(Utilities),
-      Overall_Qual = factor(Overall_Qual, levels = rev(ten_point)),
-      Overall_Cond = factor(Overall_Cond, levels = rev(ten_point))
+      alley = factor(alley),
+      bsmt_qual = factor(bsmt_qual),
+     bsmt_cond = factor(bsmt_cond),
+      central_air = factor(central_air),
+      condition1 = factor(condition1),
+      condition2 = factor(condition2),
+      electrical = factor(electrical),
+     exter_cond = factor(exter_cond),
+      exter_qual = factor(exter_qual),
+      exterior1st = factor(exterior1st),
+      exterior2nd = factor(exterior2nd),
+      fence = factor(fence),
+     fireplace_qu = factor(fireplace_qu),
+      foundation = factor(foundation),
+      functional = factor(functional),
+      garage_cond = factor(garage_cond),
+      garage_finish = factor(garage_finish),
+      garage_qual = factor(garage_qual),
+      garage_type = factor(garage_type),
+      heating = factor(heating),
+      heating_qc = factor(heating_qc),
+     kitchen_qual = factor(kitchen_qual),
+      land_contour = factor(land_contour),
+    land_slope = factor(land_slope),
+      lot_config = factor(lot_config),
+      mas_vnr_type = factor(mas_vnr_type),
+      misc_feature = factor(misc_feature),
+      paved_drive = factor(paved_drive),
+     pool_qc = factor(pool_qc),
+      roof_matl = factor(roof_matl),
+      roof_style = factor(roof_style),
+    sale_condition = factor(sale_condition),
+      sale_type = factor(sale_type),
+     street = factor(street),
+      utilities = factor(utilities),
+      overall_qual = factor(overall_qual, levels = rev(ten_point)),
+      overall_cond = factor(overall_cond, levels = rev(ten_point))
     ) %>%
     mutate(
-      PID = ifelse(PID == "0904351040", "0904351045,", PID),
-      PID = ifelse(PID == "0535300120", "0535300125,", PID),
-      PID = ifelse(PID == "0902401130", "0902401135,", PID),
-      PID = ifelse(PID == "0906226090", "0906226090,", PID),
-      PID = ifelse(PID == "0908154040", "0908154045,", PID),
-      PID = ifelse(PID == "0909129100", "0909129105,", PID),
-      PID = ifelse(PID == "0914465040", "0914465043,", PID),
-      PID = ifelse(PID == "0902103150", "0902103145,", PID),
-      PID = ifelse(PID == "0902401120", "0902401125,", PID),
-      PID = ifelse(PID == "0916253320", "0916256880,", PID),
-      PID = ifelse(PID == "0916477060", "0916477065,", PID),
-      PID = ifelse(PID == "0916325040", "0916325045,", PID)
+      pid = ifelse(pid == "0904351040", "0904351045,", pid),
+      pid = ifelse(pid == "0535300120", "0535300125,", pid),
+      pid = ifelse(pid == "0902401130", "0902401135,", pid),
+      pid = ifelse(pid == "0906226090", "0906226090,", pid),
+      pid = ifelse(pid == "0908154040", "0908154045,", pid),
+      pid = ifelse(pid == "0909129100", "0909129105,", pid),
+      pid = ifelse(pid == "0914465040", "0914465043,", pid),
+      pid = ifelse(pid == "0902103150", "0902103145,", pid),
+      pid = ifelse(pid == "0902401120", "0902401125,", pid),
+      pid = ifelse(pid == "0916253320", "0916256880,", pid),
+      pid = ifelse(pid == "0916477060", "0916477065,", pid),
+      pid = ifelse(pid == "0916325040", "0916325045,", pid)
     ) %>%
-    dplyr::inner_join(ames_geo_raw, by = "PID") %>%
+    # dplyr::inner_join(ames_geo_modif, by = "pid") %>%
     # Garage_Yr_Blt is removed due to a fair amount of missing data
-    dplyr::select(-Order,-PID, -Garage_Yr_Blt) %>%
+    dplyr::select(#-order,-pid, 
+                  -garage_yr_blt) %>%
     dplyr::mutate(
-      Neighborhood = factor(Neighborhood, levels = hood_levels)
+      neighborhood = factor(neighborhood)
     )
 
 
 ```
 
 ```{r}
-process_ames(ames_raw) 
+%>% 
+  janitor::clean_names() %>% 
+  dplyr::rename(
+    pid = MapRefNo
+  )
 ```
 
