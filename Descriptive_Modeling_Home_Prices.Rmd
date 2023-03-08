@@ -13,6 +13,7 @@ pacman::p_load(
   janitor,
   here,
   ggplot2,
+  gtsummary,
   Hmisc
   #AmesHousing
 )
@@ -51,17 +52,6 @@ five_point <- c(
   "Fair",
   "Poor"
 )
-
-## create a pid variable in ames_geo 
-
-ames_geo_modif <- ames_geo_raw %>% 
-  janitor::clean_names() %>%
-  dplyr::mutate(
-    pid = as.numeric(map_ref_no)
-  ) %>% 
-  dplyr::select(
-    - neighborhood
-  )
   
 
 ## calculate the amount of missing data in year garage was built
@@ -436,21 +426,21 @@ process_ames <- ames_raw %>%
       utilities = factor(utilities),
       overall_qual = factor(overall_qual, levels = rev(ten_point)),
       overall_cond = factor(overall_cond, levels = rev(ten_point))
-    ) %>%
-    mutate(
-      pid = ifelse(pid == "0904351040", "0904351045,", pid),
-      pid = ifelse(pid == "0535300120", "0535300125,", pid),
-      pid = ifelse(pid == "0902401130", "0902401135,", pid),
-      pid = ifelse(pid == "0906226090", "0906226090,", pid),
-      pid = ifelse(pid == "0908154040", "0908154045,", pid),
-      pid = ifelse(pid == "0909129100", "0909129105,", pid),
-      pid = ifelse(pid == "0914465040", "0914465043,", pid),
-      pid = ifelse(pid == "0902103150", "0902103145,", pid),
-      pid = ifelse(pid == "0902401120", "0902401125,", pid),
-      pid = ifelse(pid == "0916253320", "0916256880,", pid),
-      pid = ifelse(pid == "0916477060", "0916477065,", pid),
-      pid = ifelse(pid == "0916325040", "0916325045,", pid)
-    ) %>%
+     ) %>%
+    # mutate(
+    #   pid = ifelse(pid == "0904351040", "0904351045,", pid),
+    #   pid = ifelse(pid == "0535300120", "0535300125,", pid),
+    #   pid = ifelse(pid == "0902401130", "0902401135,", pid),
+    #   pid = ifelse(pid == "0906226090", "0906226090,", pid),
+    #   pid = ifelse(pid == "0908154040", "0908154045,", pid),
+    #   pid = ifelse(pid == "0909129100", "0909129105,", pid),
+    #   pid = ifelse(pid == "0914465040", "0914465043,", pid),
+    #   pid = ifelse(pid == "0902103150", "0902103145,", pid),
+    #   pid = ifelse(pid == "0902401120", "0902401125,", pid),
+    #   pid = ifelse(pid == "0916253320", "0916256880,", pid),
+    #   pid = ifelse(pid == "0916477060", "0916477065,", pid),
+    #   pid = ifelse(pid == "0916325040", "0916325045,", pid)
+    # ) %>%
     # dplyr::inner_join(ames_geo_modif, by = "pid") %>%
     # Garage_Yr_Blt is removed due to a fair amount of missing data
     dplyr::select(#-order,-pid, 
@@ -462,11 +452,27 @@ process_ames <- ames_raw %>%
 
 ```
 
-```{r}
-%>% 
-  janitor::clean_names() %>% 
-  dplyr::rename(
-    pid = MapRefNo
+```{r EDA}
+## explore the average sale price for overall house quality
+qual_price <- process_ames %>%
+  select(overall_qual, sale_price) %>% 
+   group_by(
+  #   #overall_cond, 
+     overall_qual, 
+     ) %>% 
+  summarise(
+    mean_price = mean(sale_price), n = n()
+  ) 
+
+ggplot(data = qual_price, 
+       aes(
+         x = overall_qual,
+         y = mean_price
+       )) +
+  geom_col(
+    
   )
+
+summary(lm(process_ames$sale_price ~ process_ames$overall_qual))
 ```
 
