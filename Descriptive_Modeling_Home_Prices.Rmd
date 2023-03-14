@@ -13,6 +13,7 @@ pacman::p_load(
   janitor,
   here,
   ggplot2,
+  ggmosaic,
   gtsummary,
   Hmisc
   #AmesHousing
@@ -29,7 +30,7 @@ ames_geo_raw <- as_tibble(read_csv(
 ))
 
 ```
-
+# Data Wrangling
 
 ```{r data processing}
 ten_point <- c(
@@ -55,11 +56,11 @@ five_point <- c(
   
 
 ## calculate the amount of missing data in year garage was built
-prop.table(table(is.na(ames_raw$GarageYrBlt)))*100
+missing_garage_year <- prop.table(table(is.na(ames_raw$GarageYrBlt)))*100
 
 ## process ames_raw data
 
-process_ames <- ames_raw %>%
+clean_ames <- ames_raw %>%
   janitor::clean_names() %>% 
     # # Rename variables with spaces or begin with numbers
     # # SalePrice would be inconsistently named so change that too.
@@ -128,6 +129,16 @@ process_ames <- ames_raw %>%
           'IR1' = 'Slightly_Irregular',
           'IR2' = 'Moderately_Irregular',
           'IR3' = 'Irregular'
+        )
+    ) %>%
+  dplyr::mutate(
+      land_contour =
+        dplyr::recode_factor(
+          factor(land_contour),
+          'Lvl' = 'Near Flat/Level',
+          'Bnk' = 'Banked',
+          'HLS' = 'Hillside',
+          'Low' = 'Depression'
         )
     ) %>%
     dplyr::mutate(bldg_type =
@@ -207,6 +218,21 @@ process_ames <- ames_raw %>%
           `1` = "Very_Poor"
         )
     ) %>%
+  mutate(
+     overall_cond2 = 
+   dplyr::recode_factor(
+        overall_cond,
+         "Very_Excellent" = "Good",
+         "Excellent" = "Good",
+         "Very_Good" = "Good",
+          "Good" = "Good",
+         "Above_Average" = "Average",
+          "Average"= "Average",
+          "Below_Average" = "Average",
+          "Fair" = "Poor",
+          "Poor" = "Poor",
+          "Very_Poor" = "Poor"
+        )) %>% 
     mutate(
       exter_qual =
         dplyr::recode(
@@ -427,20 +453,6 @@ process_ames <- ames_raw %>%
       overall_qual = factor(overall_qual, levels = rev(ten_point)),
       overall_cond = factor(overall_cond, levels = rev(ten_point))
      ) %>%
-    # mutate(
-    #   pid = ifelse(pid == "0904351040", "0904351045,", pid),
-    #   pid = ifelse(pid == "0535300120", "0535300125,", pid),
-    #   pid = ifelse(pid == "0902401130", "0902401135,", pid),
-    #   pid = ifelse(pid == "0906226090", "0906226090,", pid),
-    #   pid = ifelse(pid == "0908154040", "0908154045,", pid),
-    #   pid = ifelse(pid == "0909129100", "0909129105,", pid),
-    #   pid = ifelse(pid == "0914465040", "0914465043,", pid),
-    #   pid = ifelse(pid == "0902103150", "0902103145,", pid),
-    #   pid = ifelse(pid == "0902401120", "0902401125,", pid),
-    #   pid = ifelse(pid == "0916253320", "0916256880,", pid),
-    #   pid = ifelse(pid == "0916477060", "0916477065,", pid),
-    #   pid = ifelse(pid == "0916325040", "0916325045,", pid)
-    # ) %>%
     # dplyr::inner_join(ames_geo_modif, by = "pid") %>%
     # Garage_Yr_Blt is removed due to a fair amount of missing data
     dplyr::select(#-order,-pid, 
@@ -450,29 +462,146 @@ process_ames <- ames_raw %>%
     )
 
 
-```
 
-```{r EDA}
+
+```
+# Exploratory Data Analysis 
+
+## Let us explore the relationship between the average sale price for overall house quality
+```{r quali-sale}
 ## explore the average sale price for overall house quality
-qual_price <- process_ames %>%
+qual_price <- clean_ames %>%
   select(overall_qual, sale_price) %>% 
    group_by(
   #   #overall_cond, 
      overall_qual, 
      ) %>% 
   summarise(
-    mean_price = mean(sale_price), n = n()
+    mean_price = mean(sale_price),
+    n = n()
   ) 
 
-ggplot(data = qual_price, 
+qual_price
+
+qual_price_plot <- ggplot(data = clean_ames, 
        aes(
          x = overall_qual,
-         y = mean_price
+         y = sale_price
        )) +
-  geom_col(
+  geom_boxplot(
     
   )
 
-summary(lm(process_ames$sale_price ~ process_ames$overall_qual))
+qual_price_plot
+
+
+cond_price_plot <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_cond,
+         y = sale_price
+       )) +
+  geom_boxplot(
+    
+  )
+
+cond_price_plot
+
+
+qual_cond_plot <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = overall_cond2
+       )) +
+  geom_boxplot(
+    
+  )
+
+qual_cond_plot
 ```
+
+## Let us explore the relationship between overall house quality and external factors to house characteristics
+
+## With Type of road access to property
+```{r road type}
+## Let's plot the association between overall house quality and road type
+
+external_fact <- clean_ames %>% 
+  select(
+    street,
+    overall_qual,
+    alley,
+    lot_shape,
+    land_contour, 
+    utilities,
+    sale_price
+  ) %>% 
+  group_by(
+    overall_qual,
+    street,
+    alley,
+    lot_shape,
+    land_contour, 
+    utilities
+    
+  ) %>% 
+  summarise(
+    mean_price = mean(sale_price)
+  ) %>% 
+  arrange(mean_price, overall_qual) 
+
+external_fact
+
+quali_street <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = street
+       )) +
+  geom_boxplot(
+    
+  )
+
+quali_street
+
+
+quali_alley <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = alley
+       )) +
+  geom_boxplot(
+    
+  )
+
+quali_alley
+
+
+quali_shape <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = lot_shape
+       )) +
+  geom_boxplot(
+    
+  )
+
+quali_shape
+
+quali_cont <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = land_contour
+       )) +
+  geom_boxplot(
+    
+  )
+
+quali_shape
+```
+
+## 
 
