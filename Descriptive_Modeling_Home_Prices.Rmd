@@ -18,6 +18,8 @@ pacman::p_load(
   Hmisc
   #AmesHousing
 )
+
+theme_set(theme_bw())
 ```
 
 ```{r data loading}
@@ -222,7 +224,7 @@ clean_ames <- ames_raw %>%
      overall_cond2 = 
    dplyr::recode_factor(
         overall_cond,
-         "Very_Excellent" = "Good",
+         "Very_Excellent" = "Very_Excellent",
          "Excellent" = "Good",
          "Very_Good" = "Good",
           "Good" = "Good",
@@ -233,6 +235,61 @@ clean_ames <- ames_raw %>%
           "Poor" = "Poor",
           "Very_Poor" = "Poor"
         )) %>% 
+  mutate(
+    utilities = 
+      dplyr::recode(
+        utilities,
+       "AllPub"	= "All_public_Utilities",
+       "NoSewr"	= "Electricity_Gas_Water",
+       "NoSeWa"	= "Electricity_Gas_Only",
+       "ELO" = "Electricity_only"
+      )
+  ) %>% 
+  mutate(
+    lot_config = 
+    dplyr::recode(
+      lot_config,
+      "Inside" = "Inside_lot",
+      "Corner" = "	Corner_lot",
+       "CulDSac" = "Cul-de-sac",
+       "FR2" =	"Frontage_2_sides",
+       "FR3" = "Frontage_3_sides"
+    )
+  ) %>% 
+  mutate(
+    land_slope =
+      dplyr::recode(
+       land_slope, 
+       "Gtl" =	"Gentle_slope",
+       "Mod" =	"Moderate_Slope",	
+       "Sev" ="Severe_Slope"
+      )
+  ) %>% 
+  mutate(
+    dwelling_type =
+      dplyr::recode(
+        bldg_type,
+        "1Fam" = " Single-family",
+       "2FmCon" = "Two-family Conversion",
+       "Duplx"	= "Duplex",
+      "TwnhsE"	= "Townhouse_End_Unit",
+       "TwnhsI"	= "Townhouse_Inside_Unit"
+      )
+  ) %>% 
+   mutate(
+    dwelling_style =
+      dplyr::recode(
+       house_style,
+        "1Story" = "One story",
+      " 1.5Fin" =	"One_and_one-half_story_finished",
+       "1.5Unf" =	"One and one-half storyunfinished",
+       "2Story" = "Two story",
+       "2.5Fin"	= "Two_and_one-half_story_finished",
+       "2.5Unf" = "Two_and_one-half_story_unfinished",
+       "SFoyer" = "Split Foyer",
+       "SLvl" = "Split Level"
+      )
+  ) %>% 
     mutate(
       exter_qual =
         dplyr::recode(
@@ -467,7 +524,7 @@ clean_ames <- ames_raw %>%
 ```
 # Exploratory Data Analysis 
 
-## Let us explore the relationship between the average sale price for overall house quality
+## Let us explore the relationship between the average sale price for overall house quality and overall house condition
 ```{r quali-sale}
 ## explore the average sale price for overall house quality
 qual_price <- clean_ames %>%
@@ -490,11 +547,12 @@ qual_price_plot <- ggplot(data = clean_ames,
        )) +
   geom_boxplot(
     
-  )
+  )+
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
 
 qual_price_plot
 
-
+## explore the average sale price for overall house condition
 cond_price_plot <- ggplot(data = clean_ames, 
        aes(
          x = overall_cond,
@@ -502,11 +560,13 @@ cond_price_plot <- ggplot(data = clean_ames,
        )) +
   geom_boxplot(
     
-  )
+  ) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
 
 cond_price_plot
 
 
+## explore the average sale price for overall house quality and overall house condition
 qual_cond_plot <- ggplot(data = clean_ames, 
        aes(
          x = overall_qual,
@@ -515,7 +575,8 @@ qual_cond_plot <- ggplot(data = clean_ames,
        )) +
   geom_boxplot(
     
-  )
+  )+
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
 
 qual_cond_plot
 ```
@@ -524,7 +585,7 @@ qual_cond_plot
 
 ## With Type of road access to property
 ```{r road type}
-## Let's plot the association between overall house quality and road type
+## Let's plot the association between overall house quality and sales price
 
 external_fact <- clean_ames %>% 
   select(
@@ -552,6 +613,8 @@ external_fact <- clean_ames %>%
 
 external_fact
 
+
+### With Type of road access
 quali_street <- ggplot(data = clean_ames, 
        aes(
          x = overall_qual,
@@ -560,10 +623,17 @@ quali_street <- ggplot(data = clean_ames,
        )) +
   geom_boxplot(
     
-  )
+  ) + 
+  facet_wrap(~ overall_cond2)+
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
 
 quali_street
 
+
+```
+
+### With Type of alley access
+```{r alley}
 
 quali_alley <- ggplot(data = clean_ames, 
        aes(
@@ -573,11 +643,15 @@ quali_alley <- ggplot(data = clean_ames,
        )) +
   geom_boxplot(
     
-  )
+  ) + 
+  facet_wrap(~ overall_cond2) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
 
 quali_alley
+```
 
-
+### With General shape of property
+```{r shape}
 quali_shape <- ggplot(data = clean_ames, 
        aes(
          x = overall_qual,
@@ -586,9 +660,16 @@ quali_shape <- ggplot(data = clean_ames,
        )) +
   geom_boxplot(
     
-  )
+  ) +
+  facet_wrap(~ overall_cond2)   +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
 
 quali_shape
+```
+
+### With Flatness of the property
+```{r contour}
+
 
 quali_cont <- ggplot(data = clean_ames, 
        aes(
@@ -598,10 +679,104 @@ quali_cont <- ggplot(data = clean_ames,
        )) +
   geom_boxplot(
     
-  )
+  )+ 
+   facet_wrap(~ overall_cond2) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
 
-quali_shape
+quali_cont
 ```
 
-## 
+### With Type of utilities available
+```{r utilities}
+
+
+quali_util <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = utilities
+       )) +
+  geom_boxplot(
+    
+  )+ 
+   facet_wrap(~ overall_cond2) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
+
+quali_util
+
+```
+
+## With lot configuration
+```{r config}
+quali_conf <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = lot_config
+       )) +
+  geom_boxplot(
+    
+  )+ 
+   facet_wrap(~ overall_cond2) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
+
+quali_conf
+```
+
+
+## With Slope of property
+```{r slope}
+
+quali_slope <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = land_slope
+       )) +
+  geom_boxplot(
+    
+  )+ 
+   facet_wrap(~ overall_cond2) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
+
+quali_slope
+```
+
+
+## Let us explore the relationship between overall house quality and internal factors to house characteristics
+
+### With Type of dwelling
+```{r dwelling type}
+quali_dwelling_type <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = dwelling_type
+       )) +
+  geom_boxplot(
+    
+  )+ 
+   facet_wrap(~ overall_cond2) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
+
+quali_dwelling_type
+```
+
+```{r r dwelling style}
+quali_dwelling_style <- ggplot(data = clean_ames, 
+       aes(
+         x = overall_qual,
+         y = sale_price,
+         fill = dwelling_style
+       )) +
+  geom_boxplot(
+    
+  )+ 
+   facet_wrap(~ overall_cond2) +
+  theme(axis.text.x = element_text(angle = 50, vjust = 1, hjust = 1))
+
+quali_dwelling_style
+```
+
+
 
